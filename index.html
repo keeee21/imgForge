@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>画像アップロードとリサイズ</title>
+</head>
+<body>
+    <h2>画像アップロード</h2>
+    
+    <input type="file" id="upload" accept="image/*"><br><br>
+    
+    <label for="width">幅 (px):</label>
+    <input type="number" id="width" value="300" min="10"><br><br>
+
+    <label for="height">高さ (px):</label>
+    <input type="number" id="height" value="300" min="10"><br><br>
+
+    <button onclick="uploadImage()">アップロード</button>
+    
+    <h3>リサイズ後の画像</h3>
+    <img id="resizedImage" style="max-width: 100%; display: none;">
+    <button onclick="downloadImageWithPicker()">画像を保存</button>
+
+    <script>
+        function uploadImage() {
+            const fileInput = document.getElementById('upload');
+            const width = document.getElementById('width').value;
+            const height = document.getElementById('height').value;
+
+            if (!fileInput.files.length) {
+                alert("画像を選択してください");
+                return;
+            }
+
+            const formData = new FormData();
+            formData.append("image", fileInput.files[0]);
+            formData.append("width", width);
+            formData.append("height", height);
+
+            fetch("http://localhost:8080/upload", {
+                method: "POST",
+                body: formData
+            })
+            .then(response => response.blob())
+            .then(blob => {
+                const imageUrl = URL.createObjectURL(blob);
+                const img = document.getElementById('resizedImage');
+                img.src = imageUrl;
+                img.style.display = "block";
+
+                const downloadLink = document.getElementById('downloadLink');
+                downloadLink.href = imageUrl;
+                downloadLink.style.display = "block";
+            })
+            .catch(error => console.error("エラー:", error));
+        }
+
+        async function downloadImageWithPicker() {
+          const img = document.getElementById('resizedImage');
+          if (!img.src) {
+              alert("画像がありません。先にアップロードしてください。");
+              return;
+          }
+
+          try {
+              // 保存先をユーザーが選択
+              const fileHandle = await window.showSaveFilePicker({
+                  suggestedName: "resized_image.jpg",
+                  types: [
+                      {
+                          description: "Image Files",
+                          accept: { "image/jpeg": [".jpg"], "image/png": [".png"] }
+                      }
+                  ]
+              });
+
+              const writable = await fileHandle.createWritable();
+              const response = await fetch(img.src);
+              const blob = await response.blob();
+              await writable.write(blob);
+              await writable.close();
+          } catch (err) {
+              console.error("保存に失敗:", err);
+          }
+      }
+    </script>
+</body>
+</html>
